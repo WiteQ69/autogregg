@@ -1,9 +1,48 @@
 // types/car.ts
-// ...
-export type CarStatus = 'active' | 'sold' | 'draft';  // ← dodajamy 'draft'
+
+export type CarStatus = 'active' | 'sold' | 'draft';
+
+export type FuelType =
+  | 'benzyna'
+  | 'diesel'
+  | 'benzyna_lpg'
+  | 'hybryda'
+  | 'elektryczny';
+
+export type Transmission = 'manualna' | 'automatyczna';
+export type Drivetrain = 'przód' | 'tył' | '4x4';
+export type BodyType =
+  | 'hatchback'
+  | 'sedan'
+  | 'kombi'
+  | 'suv'
+  | 'crossover'
+  | 'coupe'
+  | 'kabriolet'
+  | 'van'
+  | 'dostawczy';
+
+export type Condition = 'bezwypadkowy' | 'nieuszkodzony';
+export type Origin =
+  | 'EU'
+  | 'Salon Polska'
+  | 'Niemcy'
+  | 'Belgia'
+  | 'Holandia'
+  | 'Włochy'
+  | 'Austria'
+  | 'Norwegia'
+  | 'Szwecja'
+  | 'Szwajcaria'
+  | 'Polska'
+  | 'Francja';
+
+export type RegisteredIn = 'EU' | 'PL';
+export type SaleDocument = 'umowa' | 'vat_marza' | 'vat23';
 
 export type Car = {
   id: string;
+
   // podstawowe
   title: string;
   brand?: string;
@@ -11,6 +50,7 @@ export type Car = {
   year: number;
   mileage: number;
   engine: string;
+
   // parametry
   engineCapacityCcm?: number;
   powerKw?: number;
@@ -29,7 +69,7 @@ export type Car = {
   // sprzedaż / status / cena
   price_text?: string;
   price?: number;
-  status?: CarStatus;              // ← teraz OPTIONAL i z 'draft'
+  status?: CarStatus;     // optional + dopuszcza 'draft'
   firstOwner?: boolean;
 
   // dodatkowe pola
