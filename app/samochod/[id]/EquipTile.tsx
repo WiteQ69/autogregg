@@ -1,9 +1,8 @@
 'use client';
 
 import { GaugeCircle } from 'lucide-react';
-import { EQUIPMENT_LIST, EQUIP_ICONS } from '@/lib/constants';
+import { EQUIPMENT_LIST, EQUIP_ICONS } from '@/lib/equipment';
 
-// Wyprowadzamy **poprawny typ klucza** z Twoich stałych
 type EquipmentKey = typeof EQUIPMENT_LIST[number]['key'];
 
 // Guard runtime + poprawny typ na wyjściu
@@ -20,7 +19,7 @@ export default function EquipTile({ code }: { code: string }) {
   const labelMap = new Map(EQUIPMENT_LIST.map(i => [i.key, i.label as string]));
 
   const label = k ? (labelMap.get(k) ?? code) : code;
-  const Icon = k ? EQUIP_ICONS[k] : GaugeCircle;
+  const Icon = k && EQUIP_ICONS[k] ? EQUIP_ICONS[k] : GaugeCircle;
 
   return (
     <div className="flex items-center gap-2 text-sm">
