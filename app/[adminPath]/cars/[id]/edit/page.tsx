@@ -1,217 +1,117 @@
-// app/samochod/[id]/page.tsx
-import { notFound } from 'next/navigation';
-import { EquipTile } from "@/components/ui/equip-tile";
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Gallery from './Gallery';
-import Specs from './Specs';
-import { EQUIPMENT_LIST } from '@/lib/schemas';
-import { readCars } from '@/lib/cars-db';
-import {
-  Gauge,
-  Fuel,
-  Workflow,
-  CarFront,
-  Cog,
-  Bolt,
-} from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-// --- Wyposażenie (pigułki)
-function EquipmentGrid({ codes }: { codes: string[] }) {
-  const map = new Map(EQUIPMENT_LIST.map((i) => [i.key, i.label]));
-  return (
-    <div className="flex flex-wrap gap-2">
-      {codes.map((code) => (
-        <EquipTile key={code} code={code} />
-      ))}
-    </div>
-  );
+interface CarForm {
+  title: string;
+  year: number;
+  engine: string;
+  mileage: number;
+  price_text?: string;
+  status: 'active' | 'sold';
+  main_image_path?: string | null;
 }
 
-export default async function CarPage({ params }: { params: { id: string } }) {
-  // Czytaj auta przez hybrydę (FS lokalnie / Blob na Vercelu)
-  const all = await readCars();
-  const car = all.find((c: any) => String(c?.id) === String(params.id));
-  if (!car) notFound();
+export default function EditCarPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [car, setCar] = useState<CarForm | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const images: string[] =
-    Array.isArray(car.images) && car.images.length > 0
-      ? car.images
-      : car.main_image_path
-      ? [car.main_image_path]
-      : [];
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/cars/${params.id}`);
+        if (!res.ok) throw new Error('Błąd pobierania auta');
+        const data = await res.json();
+        setCar(data);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [params.id]);
 
-  const videoUrl: string | undefined = car.video_url || undefined;
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!car) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/cars/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(car),
+      });
+      if (!res.ok) throw new Error('Błąd zapisu');
+      router.push(`/${process.env.NEXT_PUBLIC_ADMIN_PATH}/cars`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
-  // „Najważniejsze”
-  const facts: { icon: JSX.Element; label: string; value?: string }[] = [
-    {
-      icon: <Gauge className="h-5 w-5" />,
-      label: 'Przebieg',
-      value: car.mileage
-        ? `${
-            typeof car.mileage === 'number'
-              ? car.mileage.toLocaleString('pl-PL')
-              : car.mileage
-          } km`
-        : undefined,
-    },
-    {
-      icon: <Fuel className="h-5 w-5" />,
-      label: 'Paliwo',
-      value: car.fuelType ? String(car.fuelType).replace('_', ' + ') : undefined,
-    },
-    {
-      icon: <Workflow className="h-5 w-5" />,
-      label: 'Skrzynia',
-      value: car.transmission,
-    },
-    {
-      icon: <CarFront className="h-5 w-5" />,
-      label: 'Nadwozie',
-      value: car.bodyType ? String(car.bodyType).toUpperCase() : undefined,
-    },
-    {
-      icon: <Cog className="h-5 w-5" />,
-      label: 'Pojemność',
-      value: car.engineCapacityCcm
-        ? `${car.engineCapacityCcm.toLocaleString('pl-PL')} ccm`
-        : undefined,
-    },
-    {
-      icon: <Bolt className="h-5 w-5" />,
-      label: 'Moc',
-      value: car.powerKw ? `${car.powerKw} kW` : undefined,
-    },
-  ].filter((f) => !!f.value);
+  if (loading) return <p>Ładowanie…</p>;
+  if (error) return <p className="text-red-600">{error}</p>;
+  if (!car) return <p>Nie znaleziono auta.</p>;
 
   return (
-    <div className="min-h-screen bg-white pt-6">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Górny układ: galeria + panel oferty */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Galeria */}
-          <div className="lg:col-span-8">
-            <Gallery images={images} videoUrl={videoUrl} />
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-lg">
+      <input
+        type="text"
+        value={car.title}
+        onChange={(e) => setCar({ ...car, title: e.target.value })}
+        placeholder="Tytuł"
+        className="w-full border p-2 rounded"
+      />
+      <input
+        type="number"
+        value={car.year}
+        onChange={(e) => setCar({ ...car, year: Number(e.target.value) })}
+        placeholder="Rok"
+        className="w-full border p-2 rounded"
+      />
+      <input
+        type="text"
+        value={car.engine}
+        onChange={(e) => setCar({ ...car, engine: e.target.value })}
+        placeholder="Silnik"
+        className="w-full border p-2 rounded"
+      />
+      <input
+        type="number"
+        value={car.mileage}
+        onChange={(e) => setCar({ ...car, mileage: Number(e.target.value) })}
+        placeholder="Przebieg"
+        className="w-full border p-2 rounded"
+      />
+      <input
+        type="text"
+        value={car.price_text ?? ''}
+        onChange={(e) => setCar({ ...car, price_text: e.target.value })}
+        placeholder="Cena"
+        className="w-full border p-2 rounded"
+      />
+      <select
+        value={car.status}
+        onChange={(e) => setCar({ ...car, status: e.target.value as 'active' | 'sold' })}
+        className="w-full border p-2 rounded"
+      >
+        <option value="active">Aktywne</option>
+        <option value="sold">Sprzedane</option>
+      </select>
 
-          {/* Panel po prawej (sticky) */}
-          <aside className="lg:col-span-4">
-            <div className="lg:sticky lg:top-8 space-y-4">
-              <div className="rounded-2xl border p-5">
-                <h1 className="text-2xl font-bold text-zinc-900">{car.title}</h1>
-                <p className="text-zinc-600 mt-1">
-                  {car.year}
-                  {car.engine ? ` • ${car.engine}` : ''}
-                </p>
+      <Gallery value={car.main_image_path} onChange={(url) => setCar({ ...car, main_image_path: url })} />
 
-                {car.price_text && (
-                  <div className="text-3xl font-semibold mt-4">
-                    {car.price_text}
-                  </div>
-                )}
-
-                {car.status === 'sold' && (
-                  <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-medium">
-                    ✅ Sprzedane
-                  </div>
-                )}
-
-                {/* CTA */}
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button className="rounded-lg bg-zinc-900 text-white py-2.5 font-medium">
-                    Napisz
-                  </button>
-                  <button className="rounded-lg border py-2.5 font-medium">
-                    Wyświetl numer
-                  </button>
-                </div>
-              </div>
-
-              {/* mini karta pomocnicza – np. info o pochodzeniu / rejestracji */}
-              {(car.origin || car.registeredIn || car.firstOwner) && (
-                <div className="rounded-2xl border p-5 text-sm text-zinc-700 space-y-1">
-                  {car.origin && (
-                    <div>
-                      <span className="text-zinc-500">Pochodzenie: </span>
-                      {car.origin}
-                    </div>
-                  )}
-                  {car.registeredIn && (
-                    <div>
-                      <span className="text-zinc-500">Zarejestrowany: </span>
-                      {car.registeredIn}
-                    </div>
-                  )}
-                  {typeof car.firstOwner === 'boolean' && (
-                    <div>
-                      <span className="text-zinc-500">Pierwszy właściciel: </span>
-                      {car.firstOwner ? 'Tak' : 'Nie'}
-                    </div>
-                  )}
-                  {car.saleDocument && (
-                    <div>
-                      <span className="text-zinc-500">Dokument sprzedaży: </span>
-                      {car.saleDocument === 'umowa'
-                        ? 'Umowa kupna-sprzedaży'
-                        : car.saleDocument === 'vat_marza'
-                        ? 'Faktura VAT marża'
-                        : car.saleDocument === 'vat23'
-                        ? 'Faktura VAT 23%'
-                        : ''}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </aside>
-        </div>
-
-        {/* 🔹 Najważniejsze */}
-        {facts.length > 0 && (
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold mb-4">Najważniejsze</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {facts.map((f, i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl border p-6 flex flex-col items-center text-center shadow-sm hover:shadow-md transition"
-                >
-                  <div className="mx-auto mb-3 w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-700">
-                    {f.icon}
-                  </div>
-                  <div className="text-sm text-zinc-500">{f.label}</div>
-                  <div className="text-lg font-semibold mt-1">{f.value}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Opis */}
-        {car.description && (
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold mb-3">Opis</h2>
-            <p className="text-zinc-700 whitespace-pre-line">{car.description}</p>
-          </section>
-        )}
-
-        {/* 🔹 Wyposażenie */}
-        {Array.isArray(car.equipment) && car.equipment.length > 0 && (
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold mb-4">Wyposażenie</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {car.equipment.map((code: string) => (
-                <EquipTile key={code} code={code} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* (opcjonalnie) specyfikacja techniczna, jeśli z niej korzystasz */}
-        {/* <Specs ... /> */}
-      </div>
-    </div>
+      <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded">
+        {saving ? 'Zapisywanie…' : 'Zapisz'}
+      </button>
+    </form>
   );
 }
