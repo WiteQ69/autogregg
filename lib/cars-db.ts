@@ -1,39 +1,32 @@
-// lib/cars-db.ts
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+// lib/cars-db.ts  (WERSJA POD VERCEL BLOB)
+import { put } from '@vercel/blob'
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'cars.db.json');
-const SEED_PATH = path.join(process.cwd(), 'public', 'cars.json');
+const KEY = 'cars.json'
 
-export type CarRecord = any; // możesz podstawić swój typ `Car`
-
-async function ensureDb() {
+// Odczyt całej bazy aut z BLOB
+export async function readCars(): Promise<any[]> {
   try {
-    await fs.stat(DB_PATH);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    try {
-      const seed = await fs.readFile(SEED_PATH, 'utf-8');
-      await fs.writeFile(DB_PATH, seed, 'utf-8');
-    } catch {
-      await fs.writeFile(DB_PATH, '[]', 'utf-8');
+    const url = `${process.env.BLOB_URL}/${KEY}`
+    const res = await fetch(url, { cache: 'no-store' })
+    if (res.ok) {
+      return (await res.json()) as any[]
     }
+    return []
+  } catch (e) {
+    console.error('readCars error:', e)
+    return []
   }
 }
 
-export async function readCars(): Promise<CarRecord[]> {
-  await ensureDb();
-  const raw = await fs.readFile(DB_PATH, 'utf-8');
-  try {
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+// Zapis (nadpisanie) całej tablicy aut do BLOB
+export async function writeCars(cars: any[]) {
+  await put(KEY, JSON.stringify(cars, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    token: process.env.BLOB_READ_WRITE_TOKEN, // Vercel dodał ją automatycznie
+  })
 }
 
-export async function writeCars(cars: CarRecord[]): Promise<void> {
-  await ensureDb();
-  await fs.writeFile(DB_PATH, JSON.stringify(cars, null, 2), 'utf-8');
+export function findCarIndex(cars: any[], id: string) {
+  return cars.findIndex((c) => String(c.id) === String(id))
 }
