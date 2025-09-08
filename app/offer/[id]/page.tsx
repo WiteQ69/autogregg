@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,35 +13,24 @@ import { coerceStatus, STATUS_LABEL, STATUS_VARIANT } from '@/components/Status'
 import { Calendar, Gauge, Fuel, Car as CarIcon, Settings, ArrowLeft } from 'lucide-react';
 import { FUEL_TYPES, TRANSMISSIONS } from '@/lib/constants';
 
-type Dict<T extends string> = { [K in T]: string };
-
 function fuelLabel(value: string | undefined): string {
   if (!value) return '—';
   try {
-    // common shapes: array of strings OR array of {value,label}
     const maybeObj = (FUEL_TYPES as any[])[0];
-    if (typeof maybeObj === 'string') {
-      return value;
-    } else if (maybeObj && typeof maybeObj === 'object' && 'value' in maybeObj && 'label' in maybeObj) {
-      const found = (FUEL_TYPES as any[]).find((x: any) => x.value === value);
-      return found?.label ?? value;
-    }
-  } catch {}
-  return value;
+    if (typeof maybeObj === 'string') return value;
+    const found = (FUEL_TYPES as any[]).find((x: any) => x.value === value);
+    return found?.label ?? value;
+  } catch { return value; }
 }
 
 function transmissionLabel(value: string | undefined): string {
   if (!value) return '—';
   try {
     const maybeObj = (TRANSMISSIONS as any[])[0];
-    if (typeof maybeObj === 'string') {
-      return value;
-    } else if (maybeObj && typeof maybeObj === 'object' && 'value' in maybeObj && 'label' in maybeObj) {
-      const found = (TRANSMISSIONS as any[]).find((x: any) => x.value === value);
-      return found?.label ?? value;
-    }
-  } catch {}
-  return value;
+    if (typeof maybeObj === 'string') return value;
+    const found = (TRANSMISSIONS as any[]).find((x: any) => x.value === value);
+    return found?.label ?? value;
+  } catch { return value; }
 }
 
 function formatMileage(m?: number) {
@@ -50,7 +39,6 @@ function formatMileage(m?: number) {
 
 export default function OfferPage() {
   const params = useParams();
-  const router = useRouter();
   const { cars, addCar } = useCarStore();
   const id = params.id as string;
 
@@ -80,8 +68,7 @@ export default function OfferPage() {
   }
 
   const status = coerceStatus((car as any).status);
-  const imgSrc =
-    (car as any).images?.[0] ?? 'https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg';
+  const imgSrc = (car as any).images?.[0] ?? 'https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg';
 
   const facts = [
     { icon: Calendar, label: 'Rok produkcji', value: (car as any).year?.toString?.() ?? '—' },

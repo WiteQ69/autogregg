@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60; // dla większych plików
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
