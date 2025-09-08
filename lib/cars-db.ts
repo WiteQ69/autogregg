@@ -1,32 +1,35 @@
-// lib/cars-db.ts  (WERSJA POD VERCEL BLOB)
-import { put } from '@vercel/blob'
+// lib/cars-db.ts — lokalna „baza danych” oparta na pliku public/cars.json
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
-const KEY = 'cars.json'
+const DATA_FILE = path.join(process.cwd(), "public", "cars.json");
 
-// Odczyt całej bazy aut z BLOB
-export async function readCars(): Promise<any[]> {
+async function ensureFile() {
   try {
-    const url = `${process.env.BLOB_URL}/${KEY}`
-    const res = await fetch(url, { cache: 'no-store' })
-    if (res.ok) {
-      return (await res.json()) as any[]
-    }
-    return []
-  } catch (e) {
-    console.error('readCars error:', e)
-    return []
+    await fs.access(DATA_FILE);
+  } catch {
+    await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
+    await fs.writeFile(DATA_FILE, "[]", "utf8");
   }
 }
 
-// Zapis (nadpisanie) całej tablicy aut do BLOB
+export async function readCars(): Promise<any[]> {
+  await ensureFile();
+  const content = await fs.readFile(DATA_FILE, "utf8");
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 export async function writeCars(cars: any[]) {
-  await put(KEY, JSON.stringify(cars, null, 2), {
-    access: 'public',
-    contentType: 'application/json',
-    token: process.env.BLOB_READ_WRITE_TOKEN, // Vercel dodał ją automatycznie
-  })
+  await ensureFile();
+  await fs.writeFile(DATA_FILE, JSON.stringify(cars, null, 2), "utf8");
 }
 
 export function findCarIndex(cars: any[], id: string) {
-  return cars.findIndex((c) => String(c.id) === String(id))
+  return cars.findIndex((c) => String(c.id) === String(id));
 }

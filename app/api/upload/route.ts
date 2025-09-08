@@ -1,72 +1,62 @@
+// app/api/upload/route.ts — lokalny uploader plików
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 export const runtime = "nodejs";
 
-// prosta pomocnicza – content-type z nazwy pliku
-function guessType(name: string) {
-  const n = name.toLowerCase();
-  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
-  if (n.endsWith(".png")) return "image/png";
-  if (n.endsWith(".webp")) return "image/webp";
-  return "application/octet-stream";
+async function saveFileToUploads(file: File): Promise<string> {
+  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  await fs.mkdir(uploadsDir, { recursive: true });
+
+  const arrayBuffer = await file.arrayBuffer();
+  const ext = path.extname(file.name) || "";
+  const base = path
+    .basename(file.name, ext)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  const unique = `${base || "file"}-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}${ext}`;
+
+  const fullPath = path.join(uploadsDir, unique);
+  await fs.writeFile(fullPath, Buffer.from(arrayBuffer));
+
+  return `/uploads/${unique}`;
 }
 
 export async function POST(req: Request) {
   try {
-    // Obsługa JSON { name, data } gdzie data to base64 lub dataURL
-    const ct = req.headers.get("content-type") || "";
-    if (ct.includes("application/json")) {
-      const { name, data } = (await req.json()) as {
-        name: string;
-        data: string; // base64 lub dataURL
-      };
-      if (!name || !data)
-        return NextResponse.json({ error: "Bad payload" }, { status: 400 });
-
-      const base64 = data.includes(",") ? data.split(",").pop()! : data;
-      const buffer = Buffer.from(base64, "base64");
-
-      const res = await put(`uploads/${Date.now()}-${name}`, buffer, {
-        access: "public",
-        contentType: guessType(name),
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
-
-      return NextResponse.json({ url: res.url });
-    }
-
-    // Obsługa FormData z polem "file" (standardowy upload z <input type="file">)
     const form = await req.formData();
-    const file = form.get("file") as unknown as File | null;
+    let files: File[] = [];
 
-    if (!file) {
-      // opcjonalnie obsługa wielu plików: files[]
-      const files = form.getAll("files[]") as unknown as File[];
-      if (!files?.length)
-        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    const f = form.get("file");
+    if (f && f instanceof File) files.push(f);
 
-      const uploaded: string[] = [];
-      for (const f of files) {
-        const ab = await f.arrayBuffer();
-        const res = await put(`uploads/${Date.now()}-${f.name}`, new Uint8Array(ab), {
-          access: "public",
-          contentType: f.type || guessType(f.name),
-          token: process.env.BLOB_READ_WRITE_TOKEN,
-        });
-        uploaded.push(res.url);
-      }
-      return NextResponse.json({ urls: uploaded });
+    const f1 = form.get("files");
+    if (f1 && f1 instanceof File) files.push(f1);
+
+    const multi = form.getAll("files[]");
+    for (const item of multi) {
+      if (item instanceof File) files.push(item);
     }
 
-    const ab = await file.arrayBuffer();
-    const res = await put(`uploads/${Date.now()}-${file.name}`, new Uint8Array(ab), {
-      access: "public",
-      contentType: file.type || guessType(file.name),
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
+    if (!files.length) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
 
-    return NextResponse.json({ url: res.url });
+    const urls: string[] = [];
+    for (const file of files) {
+      const url = await saveFileToUploads(file);
+      urls.push(url);
+    }
+
+    if (urls.length === 1) {
+      return NextResponse.json({ url: urls[0], urls });
+    }
+    return NextResponse.json({ urls });
   } catch (e) {
     console.error("UPLOAD ERROR:", e);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
