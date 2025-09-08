@@ -1,0 +1,28 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CarStatus {
+  active
+  sold
+}
+
+model Car {
+  id              String     @id @default(uuid())
+  title           String
+  year            Int
+  engine          String
+  mileage         Int
+  price_text      String?
+  status          CarStatus  @default(active)
+  main_image_path String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}

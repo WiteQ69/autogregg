@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    // NIE przerywaj builda przez błędy ESLint
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // NIE przerywaj builda przez błędy TypeScript
-    ignoreBuildErrors: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**.blob.vercel-storage.com' },
+      { protocol: 'https', hostname: 'blob.vercel-storage.com' },
+    ],
   },
 };
 

@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@prisma/client": "^5.18.0",
+    "@vercel/blob": "^0.23.3"
+  },
+  "devDependencies": {
+    "prisma": "^5.18.0"
+  },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "prisma:dev": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy"
+  }
+}
