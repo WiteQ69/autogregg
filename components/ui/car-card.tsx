@@ -3,10 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-// Jeśli masz swój typ, możesz go tu zaimportować zamiast `any`
 type Car = {
   id: string;
   brand?: string;
@@ -16,20 +14,17 @@ type Car = {
   price_text?: string | null;
   mileage?: number;
   status?: 'active' | 'sold';
-  images?: string[];             // <-- może być undefined
+  images?: string[];
   main_image_path?: string | null;
 };
 
-export default function CarCard({ car }: { car: Car }) {
+function CarCardInner({ car }: { car: Car }) {
   const [imageError, setImageError] = useState(false);
 
-  // ZAWSZE zwróci string
   const primaryImage: string =
     imageError
       ? '/placeholder-car.jpg'
-      : car.images?.[0] ??
-        car.main_image_path ??
-        '/placeholder-car.jpg';
+      : car.images?.[0] ?? car.main_image_path ?? '/placeholder-car.jpg';
 
   const isDataURL =
     typeof primaryImage === 'string' && primaryImage.startsWith('data:');
@@ -78,7 +73,6 @@ export default function CarCard({ car }: { car: Car }) {
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           priority={false}
         />
-
         <div className="absolute left-3 top-3">
           <span
             className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_VARIANT[status]}`}
@@ -90,11 +84,9 @@ export default function CarCard({ car }: { car: Car }) {
 
       <div className="p-4 space-y-2">
         <h3 className="text-base font-semibold line-clamp-1">{title}</h3>
-
         <div className="flex items-center gap-2 text-sm text-zinc-600">
           <span>{mileageLabel}</span>
         </div>
-
         <div className="flex items-center justify-between pt-1">
           <div className="text-lg font-bold">{priceLabel}</div>
           <Button variant="outline" size="sm">
@@ -105,3 +97,11 @@ export default function CarCard({ car }: { car: Car }) {
     </Link>
   );
 }
+
+// Eksport domyślny (dotychczasowe importy default działają)
+export default function CarCard(props: { car: Car }) {
+  return <CarCardInner {...props} />;
+}
+
+// Eksport nazwany (naprawia import { CarCard } from "@/components/ui/car-card")
+export { CarCardInner as CarCard };
