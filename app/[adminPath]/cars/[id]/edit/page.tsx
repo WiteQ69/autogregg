@@ -2,7 +2,7 @@
 import { notFound } from 'next/navigation';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import Gallery from './Gallery';
+import Gallery from '../../../../samochod/[id]/Gallery'
 import Specs from './Specs';
 import { FeaturePill } from '@/components/ui/feature-icon';
 import { EQUIPMENT_LIST } from '@/lib/schemas';
