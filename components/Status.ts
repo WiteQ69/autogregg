@@ -6,7 +6,6 @@ export const STATUS_LABEL: Record<CarStatus, string> = {
   sold: 'Sprzedane',
 };
 
-// Dostosuj klasy do Twojego Badge (tu przykładowe utility classes)
 export const STATUS_VARIANT: Record<CarStatus, string> = {
   active: 'bg-green-100 text-green-800',
   sold: 'bg-gray-200 text-gray-700',
