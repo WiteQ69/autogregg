@@ -1,6 +1,6 @@
 'use client';
 
-import { GaugeCircle, Navigation, CarFront, Camera, Cog, Settings, Car, CircleCheck } from 'lucide-react';
+import { GaugeCircle, Navigation, CarFront, Camera, Cog, Settings, Car, CheckCircle } from 'lucide-react';
 
 // Samowystarczalne definicje — brak zależności od '@/lib/constants'
 export const EQUIPMENT_LIST = [
@@ -33,9 +33,9 @@ type EquipmentKey = typeof EQUIPMENT_LIST[number]['key'];
 
 const EQUIP_ICONS: Record<EquipmentKey, any> = {
   nav: Navigation,
-  abs: CircleCheck,
-  esp: CircleCheck,
-  asr: CircleCheck,
+  abs: CheckCircle,
+  esp: CheckCircle,
+  asr: CheckCircle,
   climate_auto: Cog,
   climate_manual: Cog,
   parking_sensors: CarFront,
@@ -66,7 +66,6 @@ function toEquipmentKey(code: string): EquipmentKey | undefined {
 export default function EquipTile({ code }: { code: string }) {
   const k = toEquipmentKey(code);
   const labelMap = new Map(EQUIPMENT_LIST.map(i => [i.key, i.label as string]));
-
   const label = k ? (labelMap.get(k) ?? code) : code;
   const Icon = k ? EQUIP_ICONS[k] : GaugeCircle;
 

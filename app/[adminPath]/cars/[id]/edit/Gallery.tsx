@@ -2,7 +2,17 @@
 import { useState } from 'react';
 import Image from 'next/image';
 
-export default function Gallery({ value, onChange }: { value?: string | null; onChange: (url: string | null) => void }) {
+function isDataUrl(src?: string | null) {
+  return !!src && src.startsWith('data:');
+}
+
+export default function Gallery({
+  value,
+  onChange,
+}: {
+  value?: string | null;
+  onChange: (url: string | null) => void;
+}) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,11 +23,11 @@ export default function Gallery({ value, onChange }: { value?: string | null; on
     setError(null);
     try {
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', file); // ważne: 'file'
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('Upload failed');
-      const { url } = await res.json();
-      onChange(url);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Upload failed');
+      onChange(json.url || (json.urls?.[0] ?? null));
     } catch (err: any) {
       setError(err.message ?? 'Upload error');
     } finally {
@@ -28,12 +38,21 @@ export default function Gallery({ value, onChange }: { value?: string | null; on
   return (
     <div className="space-y-3">
       {value ? (
-        <div className="relative w-full max-w-sm aspect-video">
-          <Image src={value} alt="car" fill className="object-cover rounded-md" />
-        </div>
+        isDataUrl(value) ? (
+          <img
+            src={value}
+            alt="car"
+            className="w-full max-w-sm aspect-video object-cover rounded-md"
+          />
+        ) : (
+          <div className="relative w-full max-w-sm aspect-video">
+            <Image src={value} alt="car" fill className="object-cover rounded-md" />
+          </div>
+        )
       ) : (
         <p className="text-sm text-gray-500">Brak obrazu</p>
       )}
+
       <div className="flex items-center gap-2">
         <input type="file" accept="image/*" onChange={handleFile} disabled={uploading} />
         {value && (
