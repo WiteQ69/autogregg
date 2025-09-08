@@ -8,13 +8,12 @@ import {
   ParkingCircle,
   Camera,
   Map,
-  Sun,
+  Sun,                // ← tylko raz
   Moon,
   GaugeCircle,
   Flame,
   Smartphone,
   MonitorSmartphone,
-  // Cruise,    // USUŃ
   Crosshair,
   Eye,
   Route,
@@ -25,14 +24,11 @@ import {
   Baby,
   Lamp,
   Anchor,
-  // Sunroof,   // USUŃ
   Armchair,
   ScanLine,
   Disc,
-  Gauge as Cruise, // ⟵ DODAJ
-  Sun as Sunroof,  // ⟵ DODAJ
+  Gauge,              // ← użyj bez aliasu
 } from "lucide-react";
-
 
 const ICONS: Record<string, any> = {
   abs: ShieldCheck,
@@ -43,14 +39,14 @@ const ICONS: Record<string, any> = {
   parking_sensors: ParkingCircle,
   rear_camera: Camera,
   nav: Map,
-  led: Sun,
+  led: Sun,                 // ← to samo Sun
   xenon: Moon,
   alloy_wheels: GaugeCircle,
   heated_seats: Flame,
   heated_wheel: Flame,
   apple_carplay: Smartphone,
   android_auto: MonitorSmartphone,
-  cruise: Cruise,
+  cruise: Gauge,            // ← bez aliasu
   adaptive_cruise: Crosshair,
   blind_spot: Eye,
   lane_assist: Route,
@@ -63,12 +59,12 @@ const ICONS: Record<string, any> = {
   fog: Lamp,
   roof_rails: Anchor,
   towbar: Anchor,
-  sunroof: Sunroof,
+  sunroof: Sun,             // ← zamiast Sun as Sunroof
   leather: Armchair,
   camera360: ScanLine,
 };
 
-// Prosta ikonka „kierownicy” (brak w lucide jako gotowiec)
+// Prosta ikonka „kierownicy”
 function SteeringIcon(props: any) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" {...props}>
