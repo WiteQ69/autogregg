@@ -1,39 +1,53 @@
 // lib/cars-db.ts
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'cars.db.json');
-const SEED_PATH = path.join(process.cwd(), 'public', 'cars.json');
+const USE_BLOB = process.env.USE_BLOB === "1";
+const LOCAL_FILE = path.join(process.cwd(), "public", "cars.json");
 
-export type CarRecord = any; // możesz podstawić swój typ `Car`
-
-async function ensureDb() {
-  try {
-    await fs.stat(DB_PATH);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    try {
-      const seed = await fs.readFile(SEED_PATH, 'utf-8');
-      await fs.writeFile(DB_PATH, seed, 'utf-8');
-    } catch {
-      await fs.writeFile(DB_PATH, '[]', 'utf-8');
-    }
+async function ensureLocal(file: string) {
+  try { await fs.access(file); }
+  catch {
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, "[]", "utf8");
   }
 }
 
-export async function readCars(): Promise<CarRecord[]> {
-  await ensureDb();
-  const raw = await fs.readFile(DB_PATH, 'utf-8');
-  try {
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
+export async function readCars(): Promise<any[]> {
+  if (!USE_BLOB) {
+    await ensureLocal(LOCAL_FILE);
+    const txt = await fs.readFile(LOCAL_FILE, "utf8");
+    try { const j = JSON.parse(txt); return Array.isArray(j) ? j : []; } catch { return []; }
   }
+
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const { list, get } = await import("@vercel/blob");
+
+  const l = await list({ prefix: "data/cars.json", token });
+  if (!l.blobs || l.blobs.length === 0) return [];
+
+  const { url } = l.blobs[0];
+  const { blob } = await get(url, { token });
+  const txt = await blob.text();
+  try { const j = JSON.parse(txt); return Array.isArray(j) ? j : []; } catch { return []; }
 }
 
-export async function writeCars(cars: CarRecord[]): Promise<void> {
-  await ensureDb();
-  await fs.writeFile(DB_PATH, JSON.stringify(cars, null, 2), 'utf-8');
+export async function writeCars(cars: any[]) {
+  if (!USE_BLOB) {
+    await ensureLocal(LOCAL_FILE);
+    await fs.writeFile(LOCAL_FILE, JSON.stringify(cars, null, 2), "utf8");
+    return;
+  }
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const { put } = await import("@vercel/blob");
+  await put("data/cars.json", JSON.stringify(cars, null, 2), {
+    contentType: "application/json",
+    addRandomSuffix: false,
+    token,
+    access: "public",
+  });
+}
+
+export function findCarIndex(cars: any[], id: string) {
+  return cars.findIndex((c) => String(c.id) === String(id));
 }

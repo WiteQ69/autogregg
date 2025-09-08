@@ -1,12 +1,10 @@
 // app/samochod/[id]/page.tsx
 import { notFound } from 'next/navigation';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { EquipTile } from "@/components/ui/equip-tile";
-import Gallery from '../../../../samochod/[id]/Gallery'
-import Specs from '../../../../samochod/[id]/Specs';
-import { FeaturePill } from '@/components/ui/feature-icon';
+import Gallery from './Gallery';
+import Specs from './Specs';
 import { EQUIPMENT_LIST } from '@/lib/schemas';
+import { readCars } from '@/lib/cars-db';
 import {
   Gauge,
   Fuel,
@@ -25,33 +23,15 @@ function EquipmentGrid({ codes }: { codes: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {codes.map((code) => (
-      <EquipTile key={code} code={code} />
+        <EquipTile key={code} code={code} />
       ))}
     </div>
   );
 }
 
-async function readCarsFromDisk() {
-  const DB_PATH = path.join(process.cwd(), 'data', 'cars.json');
-  const SEED_PATH = path.join(process.cwd(), 'public', 'cars.json');
-
-  try {
-    const raw = await fs.readFile(DB_PATH, 'utf-8');
-    const json = JSON.parse(raw);
-    if (Array.isArray(json)) return json;
-  } catch {}
-
-  try {
-    const raw = await fs.readFile(SEED_PATH, 'utf-8');
-    const json = JSON.parse(raw);
-    if (Array.isArray(json)) return json;
-  } catch {}
-
-  return [];
-}
-
 export default async function CarPage({ params }: { params: { id: string } }) {
-  const all = await readCarsFromDisk();
+  // Czytaj auta przez hybrydę (FS lokalnie / Blob na Vercelu)
+  const all = await readCars();
   const car = all.find((c: any) => String(c?.id) === String(params.id));
   if (!car) notFound();
 
@@ -64,14 +44,46 @@ export default async function CarPage({ params }: { params: { id: string } }) {
 
   const videoUrl: string | undefined = car.video_url || undefined;
 
-  // „Najważniejsze” – jak na zrzucie
+  // „Najważniejsze”
   const facts: { icon: JSX.Element; label: string; value?: string }[] = [
-    { icon: <Gauge className="h-5 w-5" />, label: 'Przebieg', value: car.mileage ? `${(typeof car.mileage === 'number' ? car.mileage.toLocaleString('pl-PL') : car.mileage)} km` : undefined },
-    { icon: <Fuel className="h-5 w-5" />, label: 'Paliwo', value: car.fuelType ? String(car.fuelType).replace('_',' + ') : undefined },
-    { icon: <Workflow className="h-5 w-5" />, label: 'Skrzynia', value: car.transmission },
-    { icon: <CarFront className="h-5 w-5" />, label: 'Nadwozie', value: car.bodyType ? String(car.bodyType).toUpperCase() : undefined },
-    { icon: <Cog className="h-5 w-5" />, label: 'Pojemność', value: car.engineCapacityCcm ? `${car.engineCapacityCcm.toLocaleString('pl-PL')} ccm` : undefined },
-    { icon: <Bolt className="h-5 w-5" />, label: 'Moc', value: car.powerKw ? `${car.powerKw} kW` : undefined },
+    {
+      icon: <Gauge className="h-5 w-5" />,
+      label: 'Przebieg',
+      value: car.mileage
+        ? `${
+            typeof car.mileage === 'number'
+              ? car.mileage.toLocaleString('pl-PL')
+              : car.mileage
+          } km`
+        : undefined,
+    },
+    {
+      icon: <Fuel className="h-5 w-5" />,
+      label: 'Paliwo',
+      value: car.fuelType ? String(car.fuelType).replace('_', ' + ') : undefined,
+    },
+    {
+      icon: <Workflow className="h-5 w-5" />,
+      label: 'Skrzynia',
+      value: car.transmission,
+    },
+    {
+      icon: <CarFront className="h-5 w-5" />,
+      label: 'Nadwozie',
+      value: car.bodyType ? String(car.bodyType).toUpperCase() : undefined,
+    },
+    {
+      icon: <Cog className="h-5 w-5" />,
+      label: 'Pojemność',
+      value: car.engineCapacityCcm
+        ? `${car.engineCapacityCcm.toLocaleString('pl-PL')} ccm`
+        : undefined,
+    },
+    {
+      icon: <Bolt className="h-5 w-5" />,
+      label: 'Moc',
+      value: car.powerKw ? `${car.powerKw} kW` : undefined,
+    },
   ].filter((f) => !!f.value);
 
   return (
@@ -90,11 +102,14 @@ export default async function CarPage({ params }: { params: { id: string } }) {
               <div className="rounded-2xl border p-5">
                 <h1 className="text-2xl font-bold text-zinc-900">{car.title}</h1>
                 <p className="text-zinc-600 mt-1">
-                  {car.year}{car.engine ? ` • ${car.engine}` : ''}
+                  {car.year}
+                  {car.engine ? ` • ${car.engine}` : ''}
                 </p>
 
                 {car.price_text && (
-                  <div className="text-3xl font-semibold mt-4">{car.price_text}</div>
+                  <div className="text-3xl font-semibold mt-4">
+                    {car.price_text}
+                  </div>
                 )}
 
                 {car.status === 'sold' && (
@@ -103,7 +118,7 @@ export default async function CarPage({ params }: { params: { id: string } }) {
                   </div>
                 )}
 
-                {/* CTA (tu możesz potem podmienić na realne akcje) */}
+                {/* CTA */}
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   <button className="rounded-lg bg-zinc-900 text-white py-2.5 font-medium">
                     Napisz
@@ -117,10 +132,23 @@ export default async function CarPage({ params }: { params: { id: string } }) {
               {/* mini karta pomocnicza – np. info o pochodzeniu / rejestracji */}
               {(car.origin || car.registeredIn || car.firstOwner) && (
                 <div className="rounded-2xl border p-5 text-sm text-zinc-700 space-y-1">
-                  {car.origin && <div><span className="text-zinc-500">Pochodzenie: </span>{car.origin}</div>}
-                  {car.registeredIn && <div><span className="text-zinc-500">Zarejestrowany: </span>{car.registeredIn}</div>}
+                  {car.origin && (
+                    <div>
+                      <span className="text-zinc-500">Pochodzenie: </span>
+                      {car.origin}
+                    </div>
+                  )}
+                  {car.registeredIn && (
+                    <div>
+                      <span className="text-zinc-500">Zarejestrowany: </span>
+                      {car.registeredIn}
+                    </div>
+                  )}
                   {typeof car.firstOwner === 'boolean' && (
-                    <div><span className="text-zinc-500">Pierwszy właściciel: </span>{car.firstOwner ? 'Tak' : 'Nie'}</div>
+                    <div>
+                      <span className="text-zinc-500">Pierwszy właściciel: </span>
+                      {car.firstOwner ? 'Tak' : 'Nie'}
+                    </div>
                   )}
                   {car.saleDocument && (
                     <div>
@@ -160,6 +188,7 @@ export default async function CarPage({ params }: { params: { id: string } }) {
             </div>
           </section>
         )}
+
         {/* Opis */}
         {car.description && (
           <section className="mt-10">
@@ -179,6 +208,9 @@ export default async function CarPage({ params }: { params: { id: string } }) {
             </div>
           </section>
         )}
+
+        {/* (opcjonalnie) specyfikacja techniczna, jeśli z niej korzystasz */}
+        {/* <Specs ... /> */}
       </div>
     </div>
   );
