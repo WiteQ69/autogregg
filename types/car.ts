@@ -1,41 +1,6 @@
 // types/car.ts
-export type FuelType =
-  | 'benzyna'
-  | 'diesel'
-  | 'benzyna_lpg'
-  | 'hybryda'
-  | 'elektryczny';
-
-export type Transmission = 'manualna' | 'automatyczna';
-export type Drivetrain = 'przód' | 'tył' | '4x4';
-export type BodyType =
-  | 'hatchback'
-  | 'sedan'
-  | 'kombi'
-  | 'suv'
-  | 'crossover'
-  | 'coupe'
-  | 'kabriolet'
-  | 'van'
-  | 'dostawczy';
-
-export type Condition = 'bezwypadkowy' | 'nieuszkodzony';
-export type Origin =
-  | 'EU'
-  | 'Salon Polska'
-  | 'Niemcy'
-  | 'Belgia'
-  | 'Holandia'
-  | 'Włochy'
-  | 'Austria'
-  | 'Norwegia'
-  | 'Szwecja'
-  | 'Szwajcaria'
-  | 'Polska'
-  | 'Francja';
-
-export type RegisteredIn = 'EU' | 'PL';
-export type SaleDocument = 'umowa' | 'vat_marza' | 'vat23';
+// ...
+export type CarStatus = 'active' | 'sold' | 'draft';  // ← dodajamy 'draft'
 
 export type Car = {
   id: string;
@@ -45,10 +10,10 @@ export type Car = {
   model?: string;
   year: number;
   mileage: number;
-  engine: string; // np. "2.0 TDI 190 KM" (zostawiamy dla opisu)
-  // nowe parametry techniczne
-  engineCapacityCcm?: number; // ccm
-  powerKw?: number; // kW
+  engine: string;
+  // parametry
+  engineCapacityCcm?: number;
+  powerKw?: number;
   fuelType?: FuelType;
   transmission?: Transmission;
   drivetrain?: Drivetrain;
@@ -64,9 +29,9 @@ export type Car = {
   // sprzedaż / status / cena
   price_text?: string;
   price?: number;
-  status: 'active' | 'sold';
+  status?: CarStatus;              // ← teraz OPTIONAL i z 'draft'
   firstOwner?: boolean;
-  
+
   // dodatkowe pola
   vin?: string;
   location?: string;
@@ -89,5 +54,5 @@ export type Car = {
   updatedAt?: string;
 
   // wyposażenie
-  equipment?: string[]; // np. ['abs','esp','podgrzewane_fotele',...]
+  equipment?: string[];
 };

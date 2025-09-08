@@ -1,11 +1,11 @@
-// components/ui/equip-tile.tsx
 'use client';
 
 import { FeaturePill } from "@/components/ui/feature-icon";
 import { EQUIPMENT_LIST } from "@/lib/schemas";
 
+// U Ciebie elementy mają { key, label }
 const LABELS: Record<string, string> = Object.fromEntries(
-  EQUIPMENT_LIST.map((e: { code: string; label: string }) => [e.code, e.label])
+  EQUIPMENT_LIST.map((e: { key: string; label: string }) => [e.key, e.label])
 );
 
 export function EquipTile({
