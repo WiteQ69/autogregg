@@ -3,141 +3,105 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Heart, BarChart3, Fuel, Gauge, Calendar, Car as CarIcon } from 'lucide-react';
-import { Car } from '@/types/car';
-import { useCarStore } from '@/store/car-store';
-import { formatPrice, formatMileage, getFuelTypeLabel, getTransmissionLabel } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-interface CarCardProps {
-  car: Car;
-  index?: number;
-}
+// Jeśli masz swój typ, możesz go tu zaimportować zamiast `any`
+type Car = {
+  id: string;
+  brand?: string;
+  model?: string;
+  year?: number;
+  price?: number;
+  price_text?: string | null;
+  mileage?: number;
+  status?: 'active' | 'sold';
+  images?: string[];             // <-- może być undefined
+  main_image_path?: string | null;
+};
 
-export function CarCard({ car, index = 0 }: CarCardProps) {
+export default function CarCard({ car }: { car: Car }) {
   const [imageError, setImageError] = useState(false);
-  const { favorites, comparison, toggleFavorite, addToComparison, removeFromComparison } = useCarStore();
-  
-  const isFavorite = favorites.includes(car.id);
-  const isInComparison = comparison.includes(car.id);
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
-    e.preventDefault();
-    toggleFavorite(car.id);
+  // ZAWSZE zwróci string
+  const primaryImage: string =
+    imageError
+      ? '/placeholder-car.jpg'
+      : car.images?.[0] ??
+        car.main_image_path ??
+        '/placeholder-car.jpg';
+
+  const isDataURL =
+    typeof primaryImage === 'string' && primaryImage.startsWith('data:');
+
+  const title =
+    [car.brand, car.model, car.year].filter(Boolean).join(' ') || 'Samochód';
+
+  const priceLabel =
+    car.price_text ??
+    (typeof car.price === 'number'
+      ? new Intl.NumberFormat('pl-PL', {
+          style: 'currency',
+          currency: 'PLN',
+          maximumFractionDigits: 0,
+        }).format(car.price)
+      : 'Cena do uzgodnienia');
+
+  const mileageLabel =
+    typeof car.mileage === 'number'
+      ? `${car.mileage.toLocaleString('pl-PL')} km`
+      : '—';
+
+  const status = car.status === 'sold' ? 'sold' : 'active';
+  const STATUS_LABEL: Record<'active' | 'sold', string> = {
+    active: 'Dostępny',
+    sold: 'Sprzedany',
   };
-
-  const handleToggleComparison = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isInComparison) {
-      removeFromComparison(car.id);
-    } else if (comparison.length < 3) {
-      addToComparison(car.id);
-    }
+  const STATUS_VARIANT: Record<'active' | 'sold', string> = {
+    active: 'bg-emerald-100 text-emerald-700',
+    sold: 'bg-zinc-200 text-zinc-700',
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: index * 0.05 }}
-      className="group"
+    <Link
+      href={`/samochod/${car.id}`}
+      className="group block rounded-xl overflow-hidden border bg-white hover:shadow-lg transition-shadow"
     >
-      <Link href={`/offer/${car.id}`}>
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          {/* Image */}
-          <div className="relative aspect-[4/3] overflow-hidden">
-            <Image
-              src={imageError ? '/placeholder-car.jpg' : car.images[0] || '/placeholder-car.jpg'}
-              alt={`${car.brand} ${car.model}`}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              onError={() => setImageError(true)}
-            />
-            
-            {/* Action Buttons */}
-            <div className="absolute top-3 right-3 flex space-x-2">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleToggleFavorite}
-                className={cn(
-                  'p-2 rounded-full backdrop-blur-sm transition-all duration-200',
-                  isFavorite
-                    ? 'bg-red-500 text-white'
-                    : 'bg-white/80 text-zinc-600 hover:bg-white'
-                )}
-              >
-                <Heart className={cn('h-4 w-4', isFavorite && 'fill-current')} />
-              </motion.button>
-              
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleToggleComparison}
-                disabled={!isInComparison && comparison.length >= 3}
-                className={cn(
-                  'p-2 rounded-full backdrop-blur-sm transition-all duration-200',
-                  isInComparison
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/80 text-zinc-600 hover:bg-white',
-                  !isInComparison && comparison.length >= 3 && 'opacity-50 cursor-not-allowed'
-                )}
-              >
-                <BarChart3 className="h-4 w-4" />
-              </motion.button>
-            </div>
+      <div className="relative aspect-[4/3] overflow-hidden">
+        <Image
+          src={primaryImage}
+          alt={title}
+          fill
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
+          unoptimized={isDataURL}
+          onError={() => setImageError(true)}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          priority={false}
+        />
 
-            {/* Status Badge */}
-            {car.status === 'draft' && (
-              <div className="absolute top-3 left-3 px-2 py-1 bg-yellow-500 text-white text-xs font-medium rounded-md">
-                Szkic
-              </div>
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="p-6">
-            {/* Title & Price */}
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-zinc-900 group-hover:text-zinc-700 transition-colors">
-                {car.brand} {car.model}
-              </h3>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-2xl font-bold text-zinc-900">
-                  {formatPrice(car.price)}
-                </span>
-                <span className="text-sm text-zinc-500">{car.year}</span>
-              </div>
-            </div>
-
-            {/* Key Specs */}
-            <div className="grid grid-cols-2 gap-3 text-sm text-zinc-600">
-              <div className="flex items-center space-x-2">
-                <Gauge className="h-4 w-4 text-zinc-400" />
-                <span>{formatMileage(car.mileage)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Fuel className="h-4 w-4 text-zinc-400" />
-                <span>{getFuelTypeLabel(car.fuelType)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <CarIcon className="h-4 w-4 text-zinc-400" />
-                <span>{getTransmissionLabel(car.transmission)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-zinc-400" />
-                <span>{car.power} KM</span>
-              </div>
-            </div>
-
-            {/* Location */}
-            <div className="mt-4 pt-4 border-t border-zinc-100">
-              <span className="text-xs text-zinc-500">{car.location}</span>
-            </div>
-          </div>
+        <div className="absolute left-3 top-3">
+          <span
+            className={`rounded-md px-2 py-1 text-xs font-medium ${STATUS_VARIANT[status]}`}
+          >
+            {STATUS_LABEL[status]}
+          </span>
         </div>
-      </Link>
-    </motion.div>
+      </div>
+
+      <div className="p-4 space-y-2">
+        <h3 className="text-base font-semibold line-clamp-1">{title}</h3>
+
+        <div className="flex items-center gap-2 text-sm text-zinc-600">
+          <span>{mileageLabel}</span>
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <div className="text-lg font-bold">{priceLabel}</div>
+          <Button variant="outline" size="sm">
+            Zobacz
+          </Button>
+        </div>
+      </div>
+    </Link>
   );
 }
