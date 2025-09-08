@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get('status');
     const status = statusParam === 'sold' ? 'sold' : statusParam === 'active' ? 'active' : undefined;
+
     const cars = await prisma.car.findMany({
       where: status ? { status } : undefined,
       orderBy: { createdAt: 'desc' },
@@ -20,7 +21,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(cars);
   } catch (e: any) {
     console.error('[GET /api/cars] ERROR:', e?.code || e?.message || e);
-    // DEV fallback: pozwól UI działać lokalnie nawet gdy DB nie gotowa
     if (isDev()) {
       return NextResponse.json([], { status: 200 });
     }
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     if (!title || !year || !engine || typeof mileage !== 'number') {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
     const car = await prisma.car.create({
       data: {
         title,
@@ -58,15 +59,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(car, { status: 201 });
   } catch (e: any) {
     console.error('[POST /api/cars] ERROR:', e?.code || e?.message || e);
-    // DEV fallback: zwróć echo, by UI nie pękał lokalnie
     if (isDev()) {
+      const body = await req.json().catch(() => ({}));
       return NextResponse.json(
         {
           id: crypto.randomUUID(),
           createdAt: new Date(),
           updatedAt: new Date(),
-          ...((await req.json().catch(() => ({}))) || {}),
-          status: 'active',
+          ...body,
+          status: body?.status === 'sold' ? 'sold' : 'active',
         },
         { status: 201 }
       );

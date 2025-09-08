@@ -25,7 +25,7 @@ export const EQUIPMENT_LIST = [
   { key: 'sunroof', label: 'Szyberdach' },
   { key: 'towbar', label: 'Hak holowniczy' },
   { key: 'hud', label: 'HUD' },
-  { key: 'keyless', label: 'Dostęp bezkluczykowy' },
+  { key: 'keyless_movie', label: 'Dostęp bezkluczykowy' },
   { key: 'camera360', label: 'Kamera 360°' },
 ] as const;
 
@@ -53,7 +53,7 @@ const EQUIP_ICONS: Record<EquipmentKey, any> = {
   sunroof: Car,
   towbar: Car,
   hud: Car,
-  keyless: Car,
+  keyless_movie: Car,
   camera360: Camera,
 };
 

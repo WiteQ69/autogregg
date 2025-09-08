@@ -23,7 +23,7 @@ export default function Gallery({
     setError(null);
     try {
       const fd = new FormData();
-      fd.append('file', file); // ważne: 'file'
+      fd.append('file', file); // klucz "file"
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Upload failed');
@@ -38,17 +38,17 @@ export default function Gallery({
   return (
     <div className="space-y-3">
       {value ? (
-        isDataUrl(value) ? (
-          <img
+        <div className="relative w-full max-w-sm aspect-video">
+          <Image
             src={value}
             alt="car"
-            className="w-full max-w-sm aspect-video object-cover rounded-md"
+            fill
+            sizes="(max-width: 640px) 100vw, 400px"
+            className="object-cover rounded-md"
+            unoptimized={isDataUrl(value)}
+            priority
           />
-        ) : (
-          <div className="relative w-full max-w-sm aspect-video">
-            <Image src={value} alt="car" fill className="object-cover rounded-md" />
-          </div>
-        )
+        </div>
       ) : (
         <p className="text-sm text-gray-500">Brak obrazu</p>
       )}

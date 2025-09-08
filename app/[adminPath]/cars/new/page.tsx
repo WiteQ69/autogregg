@@ -1,5 +1,6 @@
 // app/[adminPath]/cars/new/page.tsx
 'use client';
+import  Image from 'next/image';
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
