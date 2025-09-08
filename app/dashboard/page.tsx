@@ -1,299 +1,129 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { 
-  Plus, 
-  Eye, 
-  Heart, 
-  Edit, 
-  Copy, 
-  MoreVertical,
-  Search,
-  Filter
-} from 'lucide-react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCarStore } from '@/store/car-store';
-import { formatPrice, formatMileage } from '@/lib/format';
 import { mockCars } from '@/data/mock-cars';
-import { Car } from '@/types/car';
+import { coerceStatus, STATUS_LABEL, STATUS_VARIANT } from '@/components/Status';
+import { Pencil, Trash2, Eye } from 'lucide-react';
 
 export default function DashboardPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft' | 'hidden'>('all');
-  
-  const { cars, addCar, deleteCar, updateCar } = useCarStore();
+  const router = useRouter();
+  const { cars, addCar, deleteCar } = useCarStore();
 
-  // Initialize with mock data if empty
+  // wypełnij danymi demo przy pierwszym uruchomieniu (jeśli pusto)
   useEffect(() => {
-    if (cars.length === 0) {
-      mockCars.forEach(car => addCar(car));
+    if (!cars || cars.length === 0) {
+      mockCars.forEach((c) => addCar(c));
     }
-  }, [cars.length, addCar]);
+  }, [cars, addCar]);
 
-  const filteredCars = cars.filter(car => {
-    const matchesSearch = (car.brand || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (car.model || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || car.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const stats = {
-    total: cars.length,
-    active: cars.filter(c => c.status === 'active').length,
-    draft: cars.filter(c => c.status === 'draft').length,
-    totalViews: cars.reduce((sum, car) => sum + (car.views || 0), 0),
-    totalFavorites: cars.reduce((sum, car) => sum + (car.favorites || 0), 0),
-  };
-
-  const duplicateCar = (car: Car) => {
-    const newCar: Car = {
-      ...car,
-      id: Date.now().toString(),
-      status: 'draft',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      views: 0,
-      favorites: 0,
-    };
-    addCar(newCar);
-  };
-
-  const getStatusBadge = (status: Car['status']) => {
-    const variants = {
-      active: 'bg-green-100 text-green-800',
-      draft: 'bg-yellow-100 text-yellow-800',
-      hidden: 'bg-gray-100 text-gray-800',
-    };
-    
-    const labels = {
-      active: 'Aktywne',
-      draft: 'Szkic',
-      hidden: 'Ukryte',
-    };
-
-    return (
-      <Badge className={variants[status]}>
-        {labels[status]}
-      </Badge>
-    );
-  };
+  function handleDelete(id: string) {
+    if (confirm('Czy na pewno chcesz usunąć tę ofertę?')) {
+      deleteCar(id);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 py-8">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-zinc-900 mb-2 tracking-tight">
-                Panel sprzedawcy
-              </h1>
-              <p className="text-xl text-zinc-600">Zarządzaj swoimi ofertami</p>
-            </div>
-            
-            <Button asChild size="lg" className="bg-zinc-900 hover:bg-zinc-800">
-              <Link href="/dashboard/new" className="flex items-center space-x-2">
-                <Plus className="h-5 w-5" />
-                <span>Dodaj auto</span>
-              </Link>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-2xl">Panel ogłoszeń</CardTitle>
+            <Button asChild>
+              <Link href="/dashboard/new">Dodaj ofertę</Link>
             </Button>
-          </div>
-        </motion.div>
+          </CardHeader>
+          <CardContent>
+            {(!cars || cars.length === 0) ? (
+              <p className="text-sm text-zinc-600">Brak ofert. Dodaj pierwszą.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="py-3 pr-4">Zdjęcie</th>
+                      <th className="py-3 pr-4">Tytuł</th>
+                      <th className="py-3 pr-4">Cena</th>
+                      <th className="py-3 pr-4">Przebieg</th>
+                      <th className="py-3 pr-4">Status</th>
+                      <th className="py-3 pr-4 text-right">Akcje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cars.map((car) => {
+                      const s = coerceStatus((car as any).status); // gwarantuje 'active' | 'sold'
+                      const imgSrc =
+                        (car as any).images?.[0] ??
+                        'https://images.pexels.com/photos/112460/pexels-photo-112460.jpeg';
 
-        {/* Stats Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
-        >
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-2xl font-bold text-zinc-900">{stats.total}</p>
-              <p className="text-sm text-zinc-600">Wszystkich ogłoszeń</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-              <p className="text-sm text-zinc-600">Aktywnych</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-2xl font-bold text-zinc-900">{stats.totalViews}</p>
-              <p className="text-sm text-zinc-600">Wyświetleń</p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-2xl font-bold text-red-500">{stats.totalFavorites}</p>
-              <p className="text-sm text-zinc-600">Polubień</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Filters */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                <Input
-                  placeholder="Szukaj w ogłoszeniach..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+                      return (
+                        <tr key={car.id} className="border-b last:border-0">
+                          <td className="py-3 pr-4">
+                            <div className="relative h-16 w-28 overflow-hidden rounded">
+                              <Image
+                                src={imgSrc}
+                                alt={`${car.brand ?? ''} ${car.model ?? ''}`}
+                                fill
+                                sizes="112px"
+                                className="object-cover"
+                              />
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4">
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {car.title ?? `${car.brand} ${car.model} ${car.year ?? ''}`}
+                              </span>
+                              <span className="text-xs text-zinc-500">
+                                {car.brand} {car.model} • {car.year}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4">
+                            {typeof (car as any).price === 'number'
+                              ? `${(car as any).price.toLocaleString('pl-PL')} zł`
+                              : (car as any).price ?? '—'}
+                          </td>
+                          <td className="py-3 pr-4">
+                            {(car as any).mileage != null
+                              ? `${(car as any).mileage.toLocaleString('pl-PL')} km`
+                              : '—'}
+                          </td>
+                          <td className="py-3 pr-4">
+                            <Badge className={STATUS_VARIANT[s]}>{STATUS_LABEL[s]}</Badge>
+                          </td>
+                          <td className="py-3 pr-0">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="icon" asChild>
+                                <Link href={`/cars/${car.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button variant="outline" size="icon" asChild>
+                                <Link href={`/dashboard/${car.id}/edit`}>
+                                  <Pencil className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button variant="destructive" size="icon" onClick={() => handleDelete(car.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              
-              <div className="flex space-x-3">
-                {(['all', 'active', 'draft', 'hidden'] as const).map((status) => (
-                  <Button
-                    key={status}
-                    variant={statusFilter === status ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setStatusFilter(status)}
-                    className="capitalize"
-                  >
-                    {status === 'all' ? 'Wszystkie' : 
-                     status === 'active' ? 'Aktywne' :
-                     status === 'draft' ? 'Szkice' : 'Ukryte'}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* Cars List */}
-        {filteredCars.length > 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-4"
-          >
-            {filteredCars.map((car, index) => (
-              <motion.div
-                key={car.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Card className="hover:shadow-md transition-shadow duration-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-6">
-                      {/* Image */}
-                      <div className="relative w-32 h-24 rounded-xl overflow-hidden bg-zinc-100 flex-shrink-0">
-                        {car.images?.[0] && (
-                          <img
-                            src={car.images[0]}
-                            alt={`${car.brand} ${car.model}`}
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                      </div>
-
-                      {/* Details */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-lg font-bold text-zinc-900">
-                              {car.brand} {car.model}
-                            </h3>
-                            <p className="text-zinc-600 text-sm mb-2">
-                              {car.year} • {formatMileage(car.mileage)} • {car.price_text || (car.price !== undefined ? formatPrice(car.price) : 'Brak ceny')}
-                            </p>
-                            <div className="flex items-center space-x-4 text-sm text-zinc-500">
-                              <div className="flex items-center space-x-1">
-                                <Eye className="h-4 w-4" />
-                                <span>{car.views || 0}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Heart className="h-4 w-4" />
-                                <span>{car.favorites || 0}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center space-x-3">
-                            {getStatusBadge(car.status)}
-                            
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/offer/${car.id}`}>Podgląd</Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/${car.id}/edit`}>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edytuj
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => duplicateCar(car)}>
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  Duplikuj
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => deleteCar(car.id)}
-                                  className="text-red-600"
-                                >
-                                  Usuń
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-center py-16"
-          >
-            <div className="max-w-md mx-auto">
-              <div className="p-4 rounded-full bg-zinc-100 w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-                <Plus className="h-8 w-8 text-zinc-400" />
-              </div>
-              <h3 className="text-xl font-bold text-zinc-900 mb-2">Brak ogłoszeń</h3>
-              <p className="text-zinc-600 mb-6">
-                Rozpocznij sprzedaż, dodając swoje pierwsze auto.
-              </p>
-              <Button asChild size="lg" className="bg-zinc-900 hover:bg-zinc-800">
-                <Link href="/dashboard/new">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Dodaj pierwsze auto
-                </Link>
-              </Button>
-            </div>
-          </motion.div>
-        )}
       </div>
     </div>
   );
