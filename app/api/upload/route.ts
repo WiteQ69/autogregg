@@ -1,50 +1,74 @@
-// app/api/upload/route.ts
-import { NextResponse } from 'next/server';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
+import { NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
-const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
-
-async function ensureUploadsDir() {
-  await fs.mkdir(UPLOADS_DIR, { recursive: true });
-}
-
-function safeName(name: string) {
-  const base = (name || 'file').toLowerCase().replace(/[^\w.-]+/g, '-').replace(/-+/g, '-');
-  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const ext = path.extname(base) || '';
-  const stem = path.basename(base, ext);
-  return `${stem}-${stamp}${ext}`;
+// prosta pomocnicza – content-type z nazwy pliku
+function guessType(name: string) {
+  const n = name.toLowerCase();
+  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
+  if (n.endsWith(".png")) return "image/png";
+  if (n.endsWith(".webp")) return "image/webp";
+  return "application/octet-stream";
 }
 
 export async function POST(req: Request) {
   try {
-    await ensureUploadsDir();
+    // Obsługa JSON { name, data } gdzie data to base64 lub dataURL
+    const ct = req.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      const { name, data } = (await req.json()) as {
+        name: string;
+        data: string; // base64 lub dataURL
+      };
+      if (!name || !data)
+        return NextResponse.json({ error: "Bad payload" }, { status: 400 });
 
+      const base64 = data.includes(",") ? data.split(",").pop()! : data;
+      const buffer = Buffer.from(base64, "base64");
+
+      const res = await put(`uploads/${Date.now()}-${name}`, buffer, {
+        access: "public",
+        contentType: guessType(name),
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+
+      return NextResponse.json({ url: res.url });
+    }
+
+    // Obsługa FormData z polem "file" (standardowy upload z <input type="file">)
     const form = await req.formData();
-    const parts = form.getAll('files') as File[];
+    const file = form.get("file") as unknown as File | null;
 
-    if (!parts || parts.length === 0) {
-      return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+    if (!file) {
+      // opcjonalnie obsługa wielu plików: files[]
+      const files = form.getAll("files[]") as unknown as File[];
+      if (!files?.length)
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+
+      const uploaded: string[] = [];
+      for (const f of files) {
+        const ab = await f.arrayBuffer();
+        const res = await put(`uploads/${Date.now()}-${f.name}`, new Uint8Array(ab), {
+          access: "public",
+          contentType: f.type || guessType(f.name),
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+        uploaded.push(res.url);
+      }
+      return NextResponse.json({ urls: uploaded });
     }
 
-    const urls: string[] = [];
+    const ab = await file.arrayBuffer();
+    const res = await put(`uploads/${Date.now()}-${file.name}`, new Uint8Array(ab), {
+      access: "public",
+      contentType: file.type || guessType(file.name),
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
 
-    for (const file of parts) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const fname = safeName(file.name || 'file');
-      const dest = path.join(UPLOADS_DIR, fname);
-      await fs.writeFile(dest, buffer);
-      urls.push(`/uploads/${fname}`);
-    }
-
-    return NextResponse.json({ urls });
+    return NextResponse.json({ url: res.url });
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    console.error("UPLOAD ERROR:", e);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
