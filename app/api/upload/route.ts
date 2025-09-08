@@ -1,64 +1,50 @@
-// app/api/upload/route.ts — lokalny uploader plików
-import { NextResponse } from "next/server";
-import { promises as fs } from "node:fs";
-import path from "node:path";
+// app/api/upload/route.ts
+import { NextResponse } from 'next/server';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
-async function saveFileToUploads(file: File): Promise<string> {
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  await fs.mkdir(uploadsDir, { recursive: true });
+const PUBLIC_DIR = path.join(process.cwd(), 'public');
+const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
 
-  const arrayBuffer = await file.arrayBuffer();
-  const ext = path.extname(file.name) || "";
-  const base = path
-    .basename(file.name, ext)
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  const unique = `${base || "file"}-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}${ext}`;
+async function ensureUploadsDir() {
+  await fs.mkdir(UPLOADS_DIR, { recursive: true });
+}
 
-  const fullPath = path.join(uploadsDir, unique);
-  await fs.writeFile(fullPath, Buffer.from(arrayBuffer));
-
-  return `/uploads/${unique}`;
+function safeName(name: string) {
+  const base = (name || 'file').toLowerCase().replace(/[^\w.-]+/g, '-').replace(/-+/g, '-');
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const ext = path.extname(base) || '';
+  const stem = path.basename(base, ext);
+  return `${stem}-${stamp}${ext}`;
 }
 
 export async function POST(req: Request) {
   try {
+    await ensureUploadsDir();
+
     const form = await req.formData();
-    let files: File[] = [];
+    const parts = form.getAll('files') as File[];
 
-    const f = form.get("file");
-    if (f && f instanceof File) files.push(f);
-
-    const f1 = form.get("files");
-    if (f1 && f1 instanceof File) files.push(f1);
-
-    const multi = form.getAll("files[]");
-    for (const item of multi) {
-      if (item instanceof File) files.push(item);
-    }
-
-    if (!files.length) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!parts || parts.length === 0) {
+      return NextResponse.json({ error: 'No files provided' }, { status: 400 });
     }
 
     const urls: string[] = [];
-    for (const file of files) {
-      const url = await saveFileToUploads(file);
-      urls.push(url);
+
+    for (const file of parts) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const fname = safeName(file.name || 'file');
+      const dest = path.join(UPLOADS_DIR, fname);
+      await fs.writeFile(dest, buffer);
+      urls.push(`/uploads/${fname}`);
     }
 
-    if (urls.length === 1) {
-      return NextResponse.json({ url: urls[0], urls });
-    }
     return NextResponse.json({ urls });
   } catch (e) {
-    console.error("UPLOAD ERROR:", e);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    console.error(e);
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }

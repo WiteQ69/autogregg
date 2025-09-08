@@ -1,10 +1,36 @@
 'use client';
 
 import {
-  ShieldAlert, ShieldCheck, Snowflake, Fan, ParkingCircle, Camera, Map, Sun, Moon,
-  GaugeCircle, Flame, Smartphone, MonitorSmartphone, Crosshair, Eye, Route, KeyRound,
-  Power, SquareGanttChart, SquareDashedMousePointer, Baby, Lamp, Anchor, Armchair,
-  ScanLine, Disc, Gauge
+  ShieldAlert,
+  ShieldCheck,
+  Snowflake,
+  Fan,
+  ParkingCircle,
+  Camera,
+  Map,
+  Sun,
+  Moon,
+  GaugeCircle,
+  Flame,
+  Smartphone,
+  MonitorSmartphone,
+  // Cruise,    // USUŃ
+  Crosshair,
+  Eye,
+  Route,
+  KeyRound,
+  Power,
+  SquareGanttChart,
+  SquareDashedMousePointer,
+  Baby,
+  Lamp,
+  Anchor,
+  // Sunroof,   // USUŃ
+  Armchair,
+  ScanLine,
+  Disc,
+  Gauge as Cruise, // ⟵ DODAJ
+  Sun as Sunroof,  // ⟵ DODAJ
 } from "lucide-react";
 
 

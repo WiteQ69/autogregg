@@ -21,7 +21,7 @@
     "registeredIn": "EU",
     "saleDocument": "umowa",
     "price_text": "189 000 PLN",
-    "status": "active",
+    "status": "sold",
     "firstOwner": true,
     "main_image_path": "/uploads/image-1--1757000172706-v4ftql.webp",
     "images": [
@@ -42,7 +42,7 @@
       "heated_seats"
     ],
     "createdAt": "2025-09-04T15:36:12.909Z",
-    "updatedAt": "2025-09-04T17:47:02.900Z"
+    "updatedAt": "2025-09-08T12:04:48.340Z"
   },
   {
     "id": "1756995289411",
