@@ -73,7 +73,6 @@
     "typescript": "5.2.2",
     "vaul": "^0.9.9",
     "zod": "^3.22.4",
-    "zustand": "^5.0.8"
-    "@vercel/blob": "^0.24.0"
-  }
+  "zustand": "^5.0.8",
+  "@vercel/blob": "0.24.0"
 }
