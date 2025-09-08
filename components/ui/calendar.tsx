@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -56,9 +55,6 @@ export function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      /* Usuwamy `components={{ IconLeft, IconRight }}` bo typy react-day-picker nie wspierają już tych aliasów.
-         Domyślne przyciski nawigacji zostaną wyrenderowane automatycznie. */
-      captionLayout={props.captionLayout ?? "buttons"}
       {...props}
     />
   )
