@@ -25,7 +25,7 @@ function EquipmentGrid({ codes }: { codes: string[] }) {
   return (
     <div className="flex flex-wrap gap-2">
       {codes.map((code) => (
-        <FeaturePill key={code} code={code} label={map.get(code) ?? code} />
+      <EquipTile key={code} code={code} />
       ))}
     </div>
   );
