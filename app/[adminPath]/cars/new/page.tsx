@@ -1,144 +1,55 @@
-// app/[adminPath]/cars/new/page.tsx
-'use client';
-import  Image from 'next/image';
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { motion } from 'framer-motion';
-import { Save, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { carFormSchema, CarFormData } from '@/lib/schemas';
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectItem } from "@/components/ui/select"
+import { ImageUpload } from "@/components/ui/image-upload"
+import { CAR_BRANDS, CAR_MODELS } from "@/lib/constants"
 
 export default function NewCarPage() {
-  const { data: session } = useSession();
-  const router = useRouter();
-  const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const router = useRouter()
+  const [brand, setBrand] = useState<string>("")
+  const [model, setModel] = useState<string>("")
+  const [year, setYear] = useState<number | undefined>(undefined)
+  const [price, setPrice] = useState<number | undefined>(undefined)
+  const [mileage, setMileage] = useState<number | undefined>(undefined)
+  const [description, setDescription] = useState<string>("")
+  const [images, setImages] = useState<File[]>([])
 
-  const adminPath = process.env.NEXT_PUBLIC_ADMIN_PATH || '__admin-auto-greg-9c1b7f';
-
-  const { register, handleSubmit, formState: { errors, isSubmitting } } =
-    useForm<CarFormData>({ resolver: zodResolver(carFormSchema) });
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target?.result as string);
-      reader.readAsDataURL(file);
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const uploaded: string[] = []
+    for (const f of images) {
+      const buf = await f.arrayBuffer()
+      const base64 = `data:${f.type};base64,${Buffer.from(buf).toString("base64")}`
+      uploaded.push(base64)
     }
-  };
-
-  const onSubmit = async (data: CarFormData) => {
-    try {
-      let imagePath = '';
-
-      if (image) {
-        const formData = new FormData();
-        formData.append('file', image); // KLUCZ 'file' (backend też akceptuje 'image')
-        const uploadResponse = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (!uploadResponse.ok) throw new Error('Upload failed');
-        const uploadResult = await uploadResponse.json();
-        imagePath = uploadResult.url ?? uploadResult.urls?.[0] ?? uploadResult.path ?? '';
-      }
-
-      const carData = { ...data, main_image_path: imagePath, status: 'active' as const };
-
-      const response = await fetch('/api/cars', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(carData),
-      });
-
-      if (response.ok) router.push(`/${adminPath}`);
-      else console.error('Create failed:', await response.text());
-    } catch (error) {
-      console.error('Error creating car:', error);
-    }
-  };
-
-  if (!session) return null;
+    const res = await fetch("/api/cars", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: crypto.randomUUID(), brand, model, year, price, mileage, description, images: uploaded })
+    })
+    if (!res.ok) { alert("Nie udało się dodać samochodu"); return }
+    router.push("/admin/page")
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-50 py-8">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <Button variant="outline" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Powrót
-            </Button>
-          </div>
-          <h1 className="text-4xl font-bold text-zinc-900 mb-2 tracking-tight">Dodaj nowe auto</h1>
-          <p className="text-xl text-zinc-600">Wypełnij formularz, aby dodać nową ofertę</p>
-        </motion.div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          <Card>
-            <CardHeader><CardTitle>Podstawowe informacje</CardTitle></CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <Label htmlFor="title">Tytuł oferty *</Label>
-                  <Input id="title" placeholder="np. BMW X3 xDrive20d M Sport" {...register('title')} />
-                  {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="year">Rok produkcji *</Label>
-                  <Input id="year" type="number" min="1950" max="2025" {...register('year', { valueAsNumber: true })} />
-                  {errors.year && <p className="text-sm text-red-500 mt-1">{errors.year.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="mileage">Przebieg (km) *</Label>
-                  <Input id="mileage" type="number" min="0" {...register('mileage', { valueAsNumber: true })} />
-                  {errors.mileage && <p className="text-sm text-red-500 mt-1">{errors.mileage.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="engine">Silnik *</Label>
-                  <Input id="engine" placeholder="np. 2.0 TDI, 1.4 TSI, 3.0 V6" {...register('engine')} />
-                  {errors.engine && <p className="text-sm text-red-500 mt-1">{errors.engine.message}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="price_text">Cena (opcjonalnie)</Label>
-                  <Input id="price_text" placeholder="np. 150 000 PLN, Cena do negocjacji" {...register('price_text')} />
-                  {errors.price_text && <p className="text-sm text-red-500 mt-1">{errors.price_text.message}</p>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>Zdjęcie główne</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="image">Wybierz zdjęcie</Label>
-                  <Input id="image" type="file" accept="image/jpeg,image/jpg,image/png" onChange={handleImageChange} className="mt-1" />
-                  <p className="text-sm text-zinc-500 mt-1">Obsługiwane formaty: JPG, JPEG, PNG. Maksymalny rozmiar: 5MB</p>
-                </div>
-                {imagePreview && (
-                  <div className="relative w-full max-w-md">
-                    <img src={imagePreview} alt="Podgląd" className="w-full h-48 object-cover rounded-lg" />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-col sm:flex-row gap-4 pt-6">
-            <Button type="submit" size="lg" disabled={isSubmitting} className="flex-1 bg-zinc-900 hover:bg-zinc-800">
-              <Save className="h-5 w-5 mr-2" />
-              {isSubmitting ? 'Dodawanie...' : 'Dodaj auto'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+    <main className="max-w-3xl mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Nowy samochód</h1>
+      <form className="space-y-4" onSubmit={onSubmit}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div><Label>Marka</Label><Select value={brand} onValueChange={setBrand} placeholder="Wybierz markę">{CAR_BRANDS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</Select></div>
+          <div><Label>Model</Label><Select value={model} onValueChange={setModel} placeholder="Wybierz model">{(CAR_MODELS[brand] || []).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</Select></div>
+          <div><Label>Rok</Label><Input type="number" value={year ?? ""} onChange={e => setYear(e.target.value ? Number(e.target.value) : undefined)} /></div>
+          <div><Label>Cena (PLN)</Label><Input type="number" value={price ?? ""} onChange={e => setPrice(e.target.value ? Number(e.target.value) : undefined)} /></div>
+          <div><Label>Przebieg (km)</Label><Input type="number" value={mileage ?? ""} onChange={e => setMileage(e.target.value ? Number(e.target.value) : undefined)} /></div>
+        </div>
+        <div><Label>Opis</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} rows={5} /></div>
+        <div><Label>Zdjęcia</Label><ImageUpload images={images} onImagesChange={setImages} /></div>
+        <div className="pt-4"><Button type="submit">Zapisz</Button></div>
+      </form>
+    </main>
+  )
 }

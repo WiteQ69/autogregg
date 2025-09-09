@@ -1,77 +1,58 @@
-// app/api/cars/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
-export const runtime = 'nodejs';
+const memory = { cars: [] as any[] };
 
-function isDev() {
-  return process.env.NODE_ENV !== 'production';
-}
-
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const statusParam = searchParams.get('status');
-    const status = statusParam === 'sold' ? 'sold' : statusParam === 'active' ? 'active' : undefined;
-
-    const cars = await prisma.car.findMany({
-      where: status ? { status } : undefined,
-      orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(cars);
-  } catch (e: any) {
-    console.error('[GET /api/cars] ERROR:', e?.code || e?.message || e);
-    if (isDev()) {
-      return NextResponse.json([], { status: 200 });
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json({ cars: memory.cars }, { status: 200 });
     }
-    return NextResponse.json({ error: 'Failed to fetch cars' }, { status: 500 });
+    const cars = await prisma.car.findMany({ orderBy: { createdAt: "desc" } });
+    return NextResponse.json({ cars });
+  } catch (e) {
+    console.error("GET /api/cars error", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const {
-      title,
-      year,
-      engine,
-      mileage,
-      price_text,
-      status,
-      main_image_path,
-    } = body || {};
+    const payload = {
+      title: body.title ?? `${body.brand} ${body.model} ${body.year}`,
+      brand: body.brand,
+      model: body.model,
+      year: Number(body.year),
+      engine: body.engine ?? null,
+      price: Number(body.price),
+      mileage: Number(body.mileage),
+      fuelType: body.fuelType,
+      transmission: body.transmission,
+      bodyType: body.bodyType ?? null,
+      drivetrain: body.drivetrain ?? null,
+      power: body.power ? Number(body.power) : null,
+      displacement: body.displacement ? Number(body.displacement) : null,
+      color: body.color ?? null,
+      owners: body.owners ? Number(body.owners) : null,
+      accidentFree: Boolean(body.accidentFree),
+      serviceHistory: Boolean(body.serviceHistory),
+      vin: body.vin ?? null,
+      location: body.location,
+      status: body.status === "sold" ? "sold" : "active",
+      images: Array.isArray(body.images) ? body.images : [],
+    };
 
-    if (!title || !year || !engine || typeof mileage !== 'number') {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!process.env.DATABASE_URL) {
+      const car = { ...payload, id: crypto.randomUUID(), createdAt: new Date(), updatedAt: new Date() };
+      memory.cars.unshift(car);
+      return NextResponse.json({ car }, { status: 201 });
     }
 
-    const car = await prisma.car.create({
-      data: {
-        title,
-        year: Number(year),
-        engine,
-        mileage: Number(mileage),
-        price_text: price_text ?? null,
-        status: status === 'sold' ? 'sold' : 'active',
-        main_image_path: main_image_path ?? null,
-      },
-    });
-    return NextResponse.json(car, { status: 201 });
-  } catch (e: any) {
-    console.error('[POST /api/cars] ERROR:', e?.code || e?.message || e);
-    if (isDev()) {
-      const body = await req.json().catch(() => ({}));
-      return NextResponse.json(
-        {
-          id: crypto.randomUUID(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          ...body,
-          status: body?.status === 'sold' ? 'sold' : 'active',
-        },
-        { status: 201 }
-      );
-    }
-    return NextResponse.json({ error: 'Failed to create car' }, { status: 500 });
+    const car = await prisma.car.create({ data: payload });
+    return NextResponse.json({ car }, { status: 201 });
+  } catch (e) {
+    console.error("POST /api/cars error", e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

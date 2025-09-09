@@ -1,59 +1,35 @@
-// app/api/upload/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { NextResponse } from "next/server";
 
-export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const runtime = "edge";
 
-function isDev() {
-  return process.env.NODE_ENV !== 'production';
-}
-function badRequest(msg: string) {
-  return NextResponse.json({ error: msg }, { status: 400 });
-}
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const form = await req.formData();
-    const entries = [
-      ...form.getAll('file'),
-      ...form.getAll('files[]'),
-      ...form.getAll('files'),
-    ].filter(Boolean);
-
-    if (entries.length === 0) {
-      return badRequest('No file provided. Use field name "file" or "files[]".');
-    }
-
-    if (!process.env.BLOB_READ_WRITE_TOKEN && isDev()) {
-      const urls: string[] = [];
-      for (const entry of entries) {
-        if (!(entry instanceof File)) continue;
-        const ab = await entry.arrayBuffer();
-        // @ts-ignore
-        const base64 = Buffer.from(ab).toString('base64');
-        const mime = entry.type || 'application/octet-stream';
-        urls.push(`data:${mime};base64,${base64}`);
+    const contentType = req.headers.get("content-type") || "";
+    // JSON body with urls: string[]
+    if (contentType.includes("application/json")) {
+      const { urls } = await req.json();
+      if (Array.isArray(urls)) {
+        return NextResponse.json({ urls });
       }
-      return NextResponse.json(urls.length === 1 ? { url: urls[0] } : { urls });
     }
-
-    const urls: string[] = [];
-    for (const entry of entries) {
-      if (!(entry instanceof File)) continue;
-      const ab = await entry.arrayBuffer();
-      const pathname = `cars/${crypto.randomUUID()}-${entry.name}`.replace(/\s+/g, '-');
-      const { url } = await put(pathname, ab, {
-        access: 'public',
-        contentType: entry.type || 'application/octet-stream',
-      });
-      urls.push(url);
+    // multipart -> return data:urls (ephemeral)
+    if (contentType.includes("multipart/form-data")) {
+      const form = await req.formData();
+      const files = form.getAll("files");
+      const urls: string[] = [];
+      for (const f of files) {
+        if (f instanceof File) {
+          const buf = Buffer.from(await f.arrayBuffer());
+          const b64 = buf.toString("base64");
+          const mime = f.type || "image/jpeg";
+          urls.push(`data:${mime};base64,${b64}`);
+        }
+      }
+      return NextResponse.json({ urls });
     }
-
-    return NextResponse.json(urls.length === 1 ? { url: urls[0] } : { urls });
-  } catch (e: any) {
-    console.error('[POST /api/upload] ERROR:', e?.status || e?.code || e?.message || e);
-    const status = e?.status ?? 500;
-    return NextResponse.json({ error: 'Upload failed' }, { status });
+    return NextResponse.json({ error: "Unsupported payload" }, { status: 400 });
+  } catch (e) {
+    console.error("POST /api/upload error", e);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }
